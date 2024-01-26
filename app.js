@@ -1,26 +1,61 @@
-const http = require("http");
+const express = require("express");
 const dotenv = require("dotenv");
 const fs = require("fs");
+const path = require("path");
+const mustacheExpress = require("mustache-express");
 
-//AU DEBUT DU FICHIER
+//Configurations
 dotenv.config();
 
-const server = http.createServer((request, response) => {
-    if (request.method == "GET" && request.url == "/") {
-        const file = fs.readFileSync("./public/index.html", "utf-8");
+const server = express();
+////////////////
 
-        response.setHeader("Content-Type", "text/html");
-        response.statusCode = 200;
-        console.log("allo");
-        response.end(file);
+server.set("views", path.join(__dirname, "views"));
+server.set("view engine", "mustache");
+server.engine("mustache", mustacheExpress());
+
+//Middlewares
+//Doit être avant les routes/points d'accès
+server.use(express.static(path.join(__dirname, "public")));
+
+// Points d'accès
+server.get("/donnees", (req, res) => {
+    //Ceci sera remplacé par un fetch ou un appel à la base de données
+    const donnees = require("./data/donneesTest.js");
+
+    res.statusCode = 200;
+    res.json(donnees);
+});
+
+/**
+ * @method GET
+ * @param id
+ * @see url à consulter
+ * Permet d'accéder à un utilisateur
+ */
+server.get("/donnees/:id", (req, res) => {
+    // console.log(req.params.id);
+    const donnees = require("./data/donneesTest.js");
+
+    const utilisateur = donnees.find((element) => {
+        return element.id == req.params.id;
+    });
+
+    if (utilisateur) {
+        res.statusCode = 200;
+        res.json(utilisateur);
     } else {
-        const file = fs.readFileSync("./public/404.html", "utf-8");
-
-        response.setHeader("Content-Type", "text/html");
-        response.statusCode = 404;
-
-        response.end(file);
+        res.statusCode = 404;
+        res.json({ message: "Utilisateur non trouvé" });
     }
+});
+
+// DOIT Être la dernière!!
+// Gestion page 404 - requête non trouvée
+
+server.use((req, res) => {
+    res.statusCode = 404;
+    res.render("404", { url: req.url });
 });
 
 server.listen(process.env.PORT, () => {
