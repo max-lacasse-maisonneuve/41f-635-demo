@@ -24,8 +24,8 @@ server.get("/donnees", async (req, res) => {
     //Ceci sera remplacé par un fetch ou un appel à la base de données
     // const donnees = require("./data/donneesTest.js");
     console.log(req.query);
-    const direction = req.query["order-direction"];
-    const limit = +req.query["limit"];
+    const direction = req.query["order-direction"] || "asc";
+    const limit = +req.query["limit"] || 1000; //Mettre une valeur par défaut
 
     const donneesRef = await db.collection("test").orderBy("user", direction).limit(limit).get();
     const donneesFinale = [];
