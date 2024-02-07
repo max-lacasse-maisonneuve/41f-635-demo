@@ -123,6 +123,75 @@ server.delete("/donnees/:id", async (req, res) => {
     res.json({ message: "Le document a été supprimé" });
 });
 
+server.post("/utilisateurs/inscription", async (req, res) => {
+    // On récupère les infos du body
+
+    // const courriel = req.body.courriel;
+    // const mdp = req.body.mdp;
+
+    const { courriel, mdp } = req.body;
+
+    // On vérifie si le courriel existe
+    const docRef = await db.collection("utilisateurs").where("courriel", "==", courriel).get();
+    const utilisateurs = [];
+
+    docRef.forEach((doc) => {
+        utilisateurs.push(doc.data());
+    });
+
+    console.log(utilisateurs);
+    // Si oui, erreur
+    if (utilisateurs.length > 0) {
+        res.statusCode = 400;
+        return res.json({ message: "Le courriel existe déjà" });
+    }
+
+    // On valide/nettoie la donnée
+    // TODO:
+    // On encrypte le mot de passe
+    // TODO:
+
+    // On enregistre dans la DB
+    const nouvelUtilisateur = { courriel, mdp };
+    await db.collection("utilisateurs").add(nouvelUtilisateur);
+
+    delete nouvelUtilisateur.mdp;
+    // On renvoie true;
+    res.statusCode = 200;
+    res.json(nouvelUtilisateur);
+});
+
+server.post("/utilisateurs/connexion", async (req, res) => {
+    // On récupère les infos du body
+    const { mdp, courriel } = req.body;
+
+    // On vérifie si le courriel existe
+    const docRef = await db.collection("utilisateurs").where("courriel", "==", courriel).get();
+
+    const utilisateurs = [];
+    docRef.forEach((utilisateur) => {
+        utilisateurs.push(utilisateur.data());
+    });
+    // Si non, erreur
+    if (utilisateurs.length == 0) {
+        res.statusCode = 400;
+        return res.json({ message: "Courriel invalide" });
+    }
+
+    const utilisateurAValider = utilisateurs[0];
+    // TODO: On encrypte le mot de passe
+    // On compare
+    // Si pas pareil, erreur
+    if (utilisateurAValider.mdp !== mdp) {
+        res.statusCode = 400;
+        return res.json({ message: "Mot de passe invalide" });
+    }
+
+    // On retourne les infos de l'utilisateur sans le mot de passe
+    delete utilisateurAValider.mdp;
+    res.status = 200;
+    res.json(utilisateurAValider);
+});
 // DOIT Être la dernière!!
 // Gestion page 404 - requête non trouvée
 
