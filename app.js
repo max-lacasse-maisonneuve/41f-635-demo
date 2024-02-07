@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const mustacheExpress = require("mustache-express");
 const db = require("./config/db.js");
+const { check, validationResult } = require("express-validator");
 
 //Configurations
 dotenv.config();
@@ -123,43 +124,61 @@ server.delete("/donnees/:id", async (req, res) => {
     res.json({ message: "Le document a été supprimé" });
 });
 
-server.post("/utilisateurs/inscription", async (req, res) => {
-    // On récupère les infos du body
+server.post(
+    "/utilisateurs/inscription",
+    [
+        check("courriel").escape().trim().notEmpty().isEmail().normalizeEmail(),
+        check("mdp").escape().trim().notEmpty().isLength({ min: 8, max: 20 }).isStrongPassword({
+            minLength: 8,
+            minLowercase: 1,
+            minNumbers: 1,
+            minUppercase: 1,
+            minSymbols: 1,
+        }),
+    ],
+    async (req, res) => {
+        const validation = validationResult(req);
+        if (validation.errors.length > 0) {
+            res.statusCode = 400;
+            return res.json({ message: "Données non-conformes" });
+        }
+        // On récupère les infos du body
 
-    // const courriel = req.body.courriel;
-    // const mdp = req.body.mdp;
+        // const courriel = req.body.courriel;
+        // const mdp = req.body.mdp;
 
-    const { courriel, mdp } = req.body;
+        const { courriel, mdp } = req.body;
+        console.log(courriel);
+        // On vérifie si le courriel existe
+        const docRef = await db.collection("utilisateurs").where("courriel", "==", courriel).get();
+        const utilisateurs = [];
 
-    // On vérifie si le courriel existe
-    const docRef = await db.collection("utilisateurs").where("courriel", "==", courriel).get();
-    const utilisateurs = [];
+        docRef.forEach((doc) => {
+            utilisateurs.push(doc.data());
+        });
 
-    docRef.forEach((doc) => {
-        utilisateurs.push(doc.data());
-    });
+        console.log(utilisateurs);
+        // Si oui, erreur
+        if (utilisateurs.length > 0) {
+            res.statusCode = 400;
+            return res.json({ message: "Le courriel existe déjà" });
+        }
 
-    console.log(utilisateurs);
-    // Si oui, erreur
-    if (utilisateurs.length > 0) {
-        res.statusCode = 400;
-        return res.json({ message: "Le courriel existe déjà" });
+        // On valide/nettoie la donnée
+        // TODO:
+        // On encrypte le mot de passe
+        // TODO:
+
+        // On enregistre dans la DB
+        const nouvelUtilisateur = { courriel, mdp };
+        await db.collection("utilisateurs").add(nouvelUtilisateur);
+
+        delete nouvelUtilisateur.mdp;
+        // On renvoie true;
+        res.statusCode = 200;
+        res.json(nouvelUtilisateur);
     }
-
-    // On valide/nettoie la donnée
-    // TODO:
-    // On encrypte le mot de passe
-    // TODO:
-
-    // On enregistre dans la DB
-    const nouvelUtilisateur = { courriel, mdp };
-    await db.collection("utilisateurs").add(nouvelUtilisateur);
-
-    delete nouvelUtilisateur.mdp;
-    // On renvoie true;
-    res.statusCode = 200;
-    res.json(nouvelUtilisateur);
-});
+);
 
 server.post("/utilisateurs/connexion", async (req, res) => {
     // On récupère les infos du body
